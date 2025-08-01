@@ -1,4 +1,4 @@
-module booru
+module qtbooru
 
 go 1.24.5
 

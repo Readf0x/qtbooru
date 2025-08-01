@@ -1,17 +1,13 @@
 package main
 
 import (
-	"booru/pkg/api"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
+	"qtbooru/pkg/api"
 
 	"github.com/joho/godotenv"
 )
-
-const Agent = "QtBooru/indev_v0 (created by readf0x)"
 
 func main() {
 	err := godotenv.Load()
@@ -19,29 +15,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client := &http.Client{}
-	rq, err := api.NewRequest(
+	req, err := api.NewRequest(
 		api.E926,
-		&[]string{
-			"limit=1",
-		},
+		&[]string{"limit=5"},
+		&[]string{"rating:safe"},
 		os.Getenv("API_USER"),
 		os.Getenv("API_KEY"),
-		Agent,
 	)
 
-	resp, err := client.Do(rq)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
+	posts := api.Process(req)
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	for _, p := range *posts {
+		fmt.Println(p.CreatedAt)
+		fmt.Println(p.Preview.URL)
 	}
-
-	fmt.Printf("Status: %s\n", resp.Status)
-	fmt.Printf("Body: %s\n", body)
 }
 

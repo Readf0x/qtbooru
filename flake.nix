@@ -18,6 +18,25 @@
             pkgs.oapi-codegen
           ];
         };
+        packages = rec {
+          qtbooru = pkgs.buildGoModule rec {
+            name = "qtbooru";
+            pname = name;
+            version = "v0.3.4.1";
+
+            src = ./.;
+
+            vendorHash = "sha256-NHTKwUSIbNCUco88JbHOo3gt6S37ggee+LWNbHaRGEs=";
+
+            # ldflags = [ "-X 'api.E621_URL=https://e621.net/posts.json'" "-X 'api.E926_URL=https://e926.net/posts.json'" ];
+
+            meta = {
+              description = "qt booru frontend";
+              mainProgram = pname;
+            };
+          };
+          default = qtbooru;
+        };
       };
     };
 }
