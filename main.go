@@ -1,10 +1,13 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
-	"os"
-	"qtbooru/pkg/api"
+	"qtbooru/ui"
+	// "os"
+	// "os/exec"
+	// "qtbooru/pkg/api"
+	// "strings"
 
 	"github.com/joho/godotenv"
 )
@@ -15,19 +18,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	req, err := api.NewRequest(
-		api.E926,
-		&[]string{"limit=5"},
-		&[]string{"rating:safe"},
-		os.Getenv("API_USER"),
-		os.Getenv("API_KEY"),
-	)
+	// tags := os.Args[1:]
+	// req, err := api.NewRequest(
+	// 	api.E926,
+	// 	&[]string{"limit=1"},
+	// 	&tags,
+	// 	os.Getenv("API_USER"),
+	// 	os.Getenv("API_KEY"),
+	// )
+	//
+	// posts := *api.Process(req)
+	//
+	// url := strings.Replace(posts[0].Preview.URL, "localhost", "loki2", 1)
+	// fmt.Println(url)
+	// cmd := exec.Command("kitten", "icat", url)
+	// cmd.Env = os.Environ()
+	// err = cmd.Run()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	posts := api.Process(req)
-
-	for _, p := range *posts {
-		fmt.Println(p.CreatedAt)
-		fmt.Println(p.Preview.URL)
-	}
+	ui.Spawn()
 }
 

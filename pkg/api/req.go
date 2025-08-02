@@ -52,8 +52,9 @@ type RequestBuilder struct {
 }
 
 func (r *RequestBuilder) Build() (req *http.Request, err error) {
-	params := strings.Join(*r.Params, "&")
-	params += strings.Join(*r.Tags, " ")
+	tags := strings.Join(*r.Tags, " ")
+	if tags != "" { tags = "tags=" + tags }
+	params := strings.Join(append(*r.Params, tags), "&")
 	if params != "" { params = "?" + params }
 
 	req, err = http.NewRequest("GET", r.Site.String() + params, nil)

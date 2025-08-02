@@ -12,23 +12,26 @@
       perSystem = { system, pkgs, ... }: {
         devShells.default = pkgs.mkShell {
           GOPATH = "/home/readf0x/.config/go";
-          packages = [
-            pkgs.go
-            pkgs.delve
-            pkgs.oapi-codegen
+          packages = with pkgs; [
+            go
+            delve
+            pkg-config
           ];
+
+          LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ kdePackages.full ];
+          PKG_CONFIG_PATH = with pkgs; lib.makeSearchPath "lib/pkgconfig" [ kdePackages.full ];
         };
         packages = rec {
           qtbooru = pkgs.buildGoModule rec {
             name = "qtbooru";
             pname = name;
-            version = "v0.3.4.1";
+            version = "indev_v0";
 
             src = ./.;
 
-            vendorHash = "sha256-NHTKwUSIbNCUco88JbHOo3gt6S37ggee+LWNbHaRGEs=";
+            vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
-            # ldflags = [ "-X 'api.E621_URL=https://e621.net/posts.json'" "-X 'api.E926_URL=https://e926.net/posts.json'" ];
+            ldflags = [ "-s" "-w" ];
 
             meta = {
               description = "qt booru frontend";
