@@ -10,7 +10,10 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" ];
       perSystem = { system, pkgs, ... }: {
-        devShells.default = pkgs.mkShell {
+        devShells.default = let
+          lib = pkgs.lib;
+          libs = with pkgs; [ kdePackages.full ];
+        in pkgs.mkShell {
           GOPATH = "/home/readf0x/.config/go";
           packages = with pkgs; [
             go
@@ -18,8 +21,9 @@
             pkg-config
           ];
 
-          LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ kdePackages.full ];
-          PKG_CONFIG_PATH = with pkgs; lib.makeSearchPath "lib/pkgconfig" [ kdePackages.full ];
+          LD_LIBRARY_PATH = lib.makeLibraryPath libs;
+          PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" libs;
+          QML2_IMPORT_PATH = lib.makeSearchPath "lib/qt-6/qml" libs;
         };
         packages = rec {
           qtbooru = pkgs.buildGoModule rec {
