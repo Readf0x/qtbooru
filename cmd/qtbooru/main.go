@@ -1,14 +1,16 @@
-package ui
+package main
 
 import (
+	"os"
+
 	q "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/qml"
 )
 
-func Spawn() {
-	q.NewQApplication([]string{})
+func Main() {
+	q.NewQApplication(os.Args)
 	engine := qml.NewQQmlApplicationEngine()
-	url := q.QUrl_FromLocalFile("ui/main.qml")
+	engine.Load(q.NewQUrl3("qrc:/main.qml"))
 	q.QApplication_Exec()
 }
 

@@ -3,7 +3,7 @@
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   };
 
   outputs = inputs@{ flake-parts, ... }:
@@ -19,6 +19,7 @@
             go
             delve
             pkg-config
+            libsForQt5.qt5.qtbase
           ];
 
           LD_LIBRARY_PATH = lib.makeLibraryPath libs;
