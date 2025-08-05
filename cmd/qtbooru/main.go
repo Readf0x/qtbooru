@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,9 +14,9 @@ const (
 	itemWidth int = 200
 	itemHeight int = 200
 )
+var client = &http.Client{}
 
 func main() {
-	client := &http.Client{}
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -39,17 +38,29 @@ func main() {
 	window := q.NewQMainWindow2()
 
 	scrollarea := q.NewQScrollArea(window.QWidget)
+	scrollarea.SetWidgetResizable(true)
+	scrollarea.SetHorizontalScrollBarPolicy(q.ScrollBarAlwaysOff)
 	content := q.NewQWidget(scrollarea.QWidget)
 	layout := q.NewQGridLayout2()
 	content.SetLayout(layout.Layout())
+	scrollarea.SetWidget(content)
 
 	width := window.Width() / itemWidth
 	items := make([]*q.QWidget, 0, len(posts))
 	for i, post := range posts {
-		item := q.NewQPushButton5(fmt.Sprint(post.ID), content)
-		item.Show()
+		// fmt.Println(post.Preview.URL)
+		item := q.NewQLabel5(post.Description, content)
+
+		b, err := post.Preview.Get(client)
+		if err != nil { log.Fatal(err) }
+		image := q.NewQPixmap2(post.Preview.Width, post.Preview.Height)
+		image.LoadFromDataWithData(*b)
+
+		item.SetPixmap(image)
+
 		item.SetFixedWidth(itemWidth)
 		item.SetFixedHeight(itemHeight)
+		item.Show()
 		items = append(items, item.QWidget)
 		layout.AddWidget2(item.QWidget, i / width, i % width)
 	}
