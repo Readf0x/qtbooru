@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"qtbooru/pkg/api"
+	"strings"
 
+	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
 )
 
@@ -13,6 +17,25 @@ const (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tags := os.Args[1:]
+	req, err := api.NewRequest(
+		api.E926,
+		&[]string{"limit=1"},
+		&tags,
+		os.Getenv("API_USER"),
+		os.Getenv("API_KEY"),
+	)
+
+	posts := *api.Process(req)
+
+	url := strings.Replace(posts[0].Preview.URL, "localhost", "loki2", 1)
+	fmt.Println(url)
+
 	ui()
 }
 
