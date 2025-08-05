@@ -76,9 +76,7 @@ func NewRequest(site Booru, params *[]string, tags *[]string, user string, key s
 	return
 }
 
-func Process(req *http.Request) *[]*post.Post {
-	client := &http.Client{}
-
+func Process(client *http.Client, req *http.Request) *[]*post.Post {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)

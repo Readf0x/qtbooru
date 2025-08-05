@@ -9,29 +9,29 @@ type PostID int
 type UserID int
 
 type Post struct {
-	ID            PostID      `json:"id"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
-	File          File        `json:"file"`
-	Preview       FilePreview `json:"preview"`
-	Sample        FileSample  `json:"sample"`
-	Score         Score       `json:"score"`
-	Tags          TagList     `json:"tags"`
-	LockedTags    *[]string   `json:"locked_tags"`
-	ChangeSeq     int         `json:"change_seq"`
-	Flags         Flags       `json:"flags"`
-	Rating        Rating      `json:"rating"`
-	FavCount      int         `json:"fav_count"`
-	Sources       []string    `json:"sources"`
-	Pools         []PostID    `json:"pools"`
-	Relationships Relations   `json:"relationships"`
-	ApproverID    *UserID     `json:"approver_id"`
-	UploaderID    UserID      `json:"uploader_id"`
-	Description   string      `json:"description"`
-	CommentCount  int         `json:"comment_count"`
-	IsFavorited   bool        `json:"is_favorited"`
-	HasNotes      bool        `json:"has_notes"`
-	Duration      *float32    `json:"duration"`
+	ID            PostID     `json:"id"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	File          FileFull   `json:"file"`
+	Preview       File       `json:"preview"`
+	Sample        FileSample `json:"sample"`
+	Score         Score      `json:"score"`
+	Tags          TagList    `json:"tags"`
+	LockedTags    *[]string  `json:"locked_tags"`
+	ChangeSeq     int        `json:"change_seq"`
+	Flags         Flags      `json:"flags"`
+	Rating        Rating     `json:"rating"`
+	FavCount      int        `json:"fav_count"`
+	Sources       []string   `json:"sources"`
+	Pools         []PostID   `json:"pools"`
+	Relationships Relations  `json:"relationships"`
+	ApproverID    *UserID    `json:"approver_id"`
+	UploaderID    UserID     `json:"uploader_id"`
+	Description   string     `json:"description"`
+	CommentCount  int        `json:"comment_count"`
+	IsFavorited   bool       `json:"is_favorited"`
+	HasNotes      bool       `json:"has_notes"`
+	Duration      *float32   `json:"duration"`
 }
 
 type Extension uint8
@@ -66,12 +66,16 @@ func (e *Extension) UnmarshalJSON(data []byte) error {
 }
 
 type File struct {
-	Width  int       `json:"width"`
-	Height int       `json:"height"`
-	Type   Extension `json:"ext"`
-	Size   int64     `json:"size"`
-	Md5    Md5Hash   `json:"md5"`
-	URL    string    `json:"url"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+	URL    string `json:"url"`
+}
+
+type FileFull struct {
+	File
+	Type Extension `json:"ext"`
+	Size int64     `json:"size"`
+	Md5  Md5Hash   `json:"md5"`
 }
 
 type Md5Hash [16]byte
@@ -84,16 +88,8 @@ func (m *Md5Hash) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type FilePreview struct {
-	Width  int      `json:"width"`
-	Height int      `json:"height"`
-	URL    string   `json:"url"`
-}
-
 type FileSample struct {
-	Width      int         `json:"width"`
-	Height     int         `json:"height"`
-	URL        string      `json:"url"`
+	File
 	Alternates *Alternates `json:"alternates"`
 }
 
@@ -115,12 +111,10 @@ type AlternateSamples struct {
 }
 
 type PostSampleAlternate struct {
-	Fps    float64  `json:"fps"`
-	Codec  string   `json:"codec"`
-	Size   int64    `json:"size"`
-	Width  int      `json:"width"`
-	Height int      `json:"height"`
-	URL    string   `json:"url"`
+	File
+	Fps   float64 `json:"fps"`
+	Codec string  `json:"codec"`
+	Size  int64   `json:"size"`
 }
 
 type Score struct {

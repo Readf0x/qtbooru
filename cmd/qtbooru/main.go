@@ -3,20 +3,21 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"qtbooru/pkg/api"
-	"strings"
 
 	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
 )
 
 const (
-	itemWidth int = 180
-	itemHeight int = 194
+	itemWidth int = 200
+	itemHeight int = 200
 )
 
 func main() {
+	client := &http.Client{}
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -25,22 +26,15 @@ func main() {
 	tags := os.Args[1:]
 	req, err := api.NewRequest(
 		api.E926,
-		&[]string{"limit=1"},
+		&[]string{"limit=20"},
 		&tags,
 		os.Getenv("API_USER"),
 		os.Getenv("API_KEY"),
 	)
 
-	posts := *api.Process(req)
+	posts := *api.Process(client, req)
 
-	url := strings.Replace(posts[0].Preview.URL, "localhost", "loki2", 1)
-	fmt.Println(url)
-
-	ui()
-}
-
-func ui() {
-	q.NewQApplication(os.Args)
+	q.NewQApplication([]string{})
 
 	window := q.NewQMainWindow2()
 
@@ -50,9 +44,9 @@ func ui() {
 	content.SetLayout(layout.Layout())
 
 	width := window.Width() / itemWidth
-	items := make([]*q.QWidget, 0, 20)
-	for i := range 20 {
-		item := q.NewQPushButton5(fmt.Sprint(i), content)
+	items := make([]*q.QWidget, 0, len(posts))
+	for i, post := range posts {
+		item := q.NewQPushButton5(fmt.Sprint(post.ID), content)
 		item.Show()
 		item.SetFixedWidth(itemWidth)
 		item.SetFixedHeight(itemHeight)
