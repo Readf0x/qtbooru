@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"os"
 	"qtbooru/pkg/api"
+	"qtbooru/pkg/api/post"
 
 	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
+	"github.com/mappu/miqt/qt6/mainthread"
 )
 
 const (
@@ -47,17 +49,9 @@ func main() {
 
 	width := window.Width() / itemWidth
 	items := make([]*q.QWidget, 0, len(posts))
-	for i, post := range posts {
-		// fmt.Println(post.Preview.URL)
-		item := q.NewQLabel5(post.Description, content)
-
-		b, err := post.Preview.Get(client)
-		if err != nil { log.Fatal(err) }
-		image := q.NewQPixmap2(post.Preview.Width, post.Preview.Height)
-		image.LoadFromDataWithData(*b)
-
-		item.SetPixmap(image)
-
+	for i, p := range posts {
+		item := q.NewQLabel5(p.Description, content)
+		go getAsync(&p.Preview, item)
 		item.SetFixedWidth(itemWidth)
 		item.SetFixedHeight(itemHeight)
 		item.Show()
@@ -92,3 +86,12 @@ func relayout(layout *q.QGridLayout, items []*q.QWidget, width int) {
 	parent.SetFixedSize2(w, h)
 }
 
+func getAsync(f *post.File, label *q.QLabel) {
+	b, err := f.Get(client)
+	if err != nil { return }
+	image := q.NewQPixmap()
+	image.LoadFromDataWithData(*b)
+	mainthread.Wait(func() {
+		label.SetPixmap(image)
+	})
+}
