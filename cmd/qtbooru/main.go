@@ -15,6 +15,8 @@ import (
 const (
 	itemWidth int = 200
 	itemHeight int = 200
+
+	Agent = "QtBooru/indev_v0 (created by readf0x)"
 )
 var client = &http.Client{}
 
@@ -25,15 +27,13 @@ func main() {
 	}
 
 	tags := os.Args[1:]
-	req, err := api.NewRequest(
-		api.E926,
-		&[]string{"limit=20"},
-		&tags,
-		os.Getenv("API_USER"),
-		os.Getenv("API_KEY"),
-	)
-
-	posts := *api.Process(client, req)
+	posts := *(&api.RequestBuilder{
+		Site: api.E926,
+		Params: &[]string{"limit=20"},
+		Tags: &tags,
+		Key: os.Getenv("API_USER"),
+		Agent: os.Getenv("API_KEY"),
+	}).Process(client)
 
 	q.NewQApplication([]string{})
 

@@ -13,8 +13,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const Agent = "QtBooru/indev_v0 (created by readf0x)"
-
 type Booru int
 const (
 	E621 Booru = iota
@@ -49,34 +47,20 @@ type RequestBuilder struct {
 	Tags *[]string
 	User string
 	Key string
+	Agent string
 }
 
-func (r *RequestBuilder) Build() (req *http.Request, err error) {
+func (r *RequestBuilder) Process(client *http.Client) *[]*post.Post {
 	tags := strings.Join(*r.Tags, " ")
 	if tags != "" { tags = "tags=" + tags }
 	params := strings.Join(append(*r.Params, tags), "&")
 	if params != "" { params = "?" + params }
 
-	req, err = http.NewRequest("GET", r.Site.String() + params, nil)
-	if err != nil { return }
+	req, err := http.NewRequest("GET", r.Site.String() + params, nil)
+	if err != nil { return nil }
 
-	req.Header.Set("User-Agent", Agent)
+	req.Header.Set("User-Agent", r.Agent)
 	req.Header.Set("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(r.User+":"+r.Key)))
-	return
-}
-
-func NewRequest(site Booru, params *[]string, tags *[]string, user string, key string) (req *http.Request, err error) {
-	req, err = (&RequestBuilder{
-		Site: site,
-		Params: params,
-		Tags: tags,
-		User: user,
-		Key: key,
-	}).Build()
-	return
-}
-
-func Process(client *http.Client, req *http.Request) *[]*post.Post {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
