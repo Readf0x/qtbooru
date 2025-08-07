@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"qtbooru/pkg/api"
 	"qtbooru/pkg/api/post"
+	"strings"
 
 	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
@@ -13,20 +15,25 @@ import (
 )
 
 const (
-	itemWidth int = 200
-	itemHeight int = 200
+	itemWidth = 200
+	itemHeight = 200
+	pageSize = 20
 
 	Agent = "QtBooru/indev_v0 (created by readf0x)"
 )
-var client = &http.Client{}
+var (
+	currentPage = 1
+	isLoading = false
+	endOfPosts = false
+
+	client = &http.Client{}
+)
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	posts := request(os.Args[1:])
 
 	q.NewQApplication([]string{})
 
@@ -42,6 +49,7 @@ func main() {
 	itemList := q.NewQScrollArea2()
 	itemList.SetWidgetResizable(true)
 	itemList.SetHorizontalScrollBarPolicy(q.ScrollBarAlwaysOff)
+	scrollBar := itemList.VerticalScrollBar()
 	mainLayout.AddWidget(itemList.QWidget)
 	listContent := q.NewQWidget(itemList.QWidget)
 	layout := q.NewQGridLayout2()
@@ -55,20 +63,29 @@ func main() {
 	imageView.SetSizePolicy2(q.QSizePolicy__Ignored, q.QSizePolicy__Ignored)
 	stack.AddWidget(imageView.QWidget)
 
-	width := window.Width() / itemWidth
-	var items []*q.QWidget = nil
-	if len(posts) == 0 {
-		msg := q.NewQLabel3("No Results.")
-		msg.SetAlignment(q.AlignCenter)
-		listContent.Layout().AddWidget(msg.QWidget)
-	} else {
-		items = make([]*q.QWidget, 0, len(posts))
-		posts.addToGrid(&items, width, layout, imageView, stack)
+	items := make([]*q.QWidget, 0)
+
+	tags := []string{}
+	if len(os.Args) > 1 {
+		tags = os.Args[1:]
 	}
 
+	update(tags, &items, listContent, layout, imageView, stack)
+
+	search.OnReturnPressed(func(){
+		tags = strings.Split(search.Text(), " ")
+		for _, item := range items {
+			layout.RemoveWidget(item)
+			item.DeleteLater()
+		}
+		items = make([]*q.QWidget, 0)
+		currentPage = 0
+		scrollBar.SetValue(0)
+		update(tags, &items, listContent, layout, imageView, stack)
+	})
 	itemList.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
 		if len(items) != 0 {
-			relayout(layout, items, max(itemWidth, event.Size().Width() - 20) / itemWidth)
+			relayout(listContent, layout, items, max(itemWidth, event.Size().Width() - 20) / itemWidth)
 		}
 	})
 	window.SetMinimumSize2(itemWidth, itemHeight)
@@ -77,13 +94,20 @@ func main() {
 			stack.SetCurrentIndex(0)
 		}
 	})
+	scrollBar.OnValueChanged(func(value int){
+		if isLoading || endOfPosts {
+			return
+		}
+		if value >= scrollBar.Maximum() {
+			update(tags, &items, listContent, layout, imageView, stack)
+		}
+	})
 	window.Show()
 	q.QApplication_Exec()
 }
 
-func relayout(layout *q.QGridLayout, items []*q.QWidget, width int) {
-	if items != nil {
-		parent := items[0].ParentWidget()
+func relayout(parent *q.QWidget, layout *q.QGridLayout, items []*q.QWidget, width int) {
+	if len(items) > 0 {
 		for _, item := range items {
 			layout.RemoveWidget(item)
 		}
@@ -95,9 +119,10 @@ func relayout(layout *q.QGridLayout, items []*q.QWidget, width int) {
 		rows++
 		w := parent.ParentWidget().Width()
 		h := rows * itemHeight
-		h += rows*20
+		h += rows * pageSize
 		parent.SetFixedSize2(w, h)
 	}
+	layout.Activate()
 }
 
 func getAsync(f *post.File, label *q.QLabel) {
@@ -113,7 +138,7 @@ func getAsync(f *post.File, label *q.QLabel) {
 func request(tags []string) posts {
 	req := &api.RequestBuilder{
 		Site: api.E926,
-		Params: &[]string{"limit=4"},
+		Params: &[]string{fmt.Sprintf("limit=%d", pageSize), fmt.Sprintf("page=%d", currentPage)},
 		Tags: &tags,
 		User: os.Getenv("API_USER"),
 		Key: os.Getenv("API_KEY"),
@@ -128,15 +153,15 @@ func request(tags []string) posts {
 
 type posts []*post.Post
 
-func (P posts) addToGrid(items *[]*q.QWidget, width int, grid *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
-	for i, p := range P {
+func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
+	for _, p := range P {
 		item := q.NewQLabel3(p.Description)
 		go getAsync(&p.Preview, item)
 		item.SetFixedWidth(itemWidth)
 		item.SetFixedHeight(itemHeight)
 		item.OnMousePressEvent(itemClick(p, imageView, stack))
 		*items = append(*items, item.QWidget)
-		grid.AddWidget2(item.QWidget, i / width, i % width)
+		grid.AddWidget(item.QWidget)
 	}
 }
 
@@ -155,4 +180,22 @@ func itemClick(p *post.Post, imageView *q.QLabel, stack *q.QStackedWidget) func(
 			}
 			super(ev)
 		}
+}
+
+func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
+	isLoading = true
+	posts := request(tags)
+
+	if len(posts) < pageSize { endOfPosts = true }
+
+	if len(*items) == 0 && len(posts) == 0 {
+		msg := q.NewQLabel3("No Results.")
+		msg.SetAlignment(q.AlignCenter)
+		listContent.Layout().AddWidget(msg.QWidget)
+	} else {
+		posts.addToGrid(items, layout, imageView, stack)
+		isLoading = false
+		currentPage++
+		relayout(listContent, layout, *items, max(itemWidth, listContent.Window().Width() - 20) / itemWidth)
+	}
 }
