@@ -17,7 +17,7 @@ import (
 const (
 	itemWidth = 200
 	itemHeight = 200
-	pageSize = 20
+	pageSize = 40
 
 	Agent = "QtBooru/indev_v0 (created by readf0x)"
 )
@@ -57,10 +57,15 @@ func main() {
 	itemList.SetWidget(listContent)
 	stack.AddWidget(mainArea)
 
-	imageView := q.NewQLabel(window.QWidget)
-	imageView.SetVisible(false)
-	imageView.SetScaledContents(true)
-	imageView.SetSizePolicy2(q.QSizePolicy__Ignored, q.QSizePolicy__Ignored)
+	imageView := q.NewQGraphicsView(window.QWidget)
+	imageView.SetRenderHint(q.QPainter__SmoothPixmapTransform)
+	imageView.SetTransformationAnchor(q.QGraphicsView__AnchorUnderMouse)
+	imageView.SetResizeAnchor(q.QGraphicsView__AnchorUnderMouse)
+	imageView.SetDragMode(q.QGraphicsView__ScrollHandDrag)
+	imageView.SetHorizontalScrollBarPolicy(q.ScrollBarAlwaysOff)
+	imageView.SetVerticalScrollBarPolicy(q.ScrollBarAlwaysOff)
+	scene := q.NewQGraphicsScene()
+	imageView.SetScene(scene)
 	stack.AddWidget(imageView.QWidget)
 
 	items := make([]*q.QWidget, 0)
@@ -68,6 +73,7 @@ func main() {
 	tags := []string{}
 	if len(os.Args) > 1 {
 		tags = os.Args[1:]
+		search.SetText(strings.Join(tags, " "))
 	}
 
 	update(tags, &items, listContent, layout, imageView, stack)
@@ -79,7 +85,7 @@ func main() {
 			item.DeleteLater()
 		}
 		items = make([]*q.QWidget, 0)
-		currentPage = 0
+		currentPage = 1
 		scrollBar.SetValue(0)
 		update(tags, &items, listContent, layout, imageView, stack)
 	})
@@ -135,6 +141,21 @@ func getAsync(f *post.File, label *q.QLabel) {
 	})
 }
 
+func viewFile(f *post.File, view *q.QGraphicsView) {
+	b, err := f.Get(client)
+	if err != nil { return }
+	image := q.NewQPixmap()
+	image.LoadFromDataWithData(*b)
+	mainthread.Wait(func() {
+		scene := view.Scene()
+		scene.Clear()
+		item := scene.AddPixmap(image)
+		item.SetTransformationMode(q.FastTransformation)
+		scene.SetSceneRect2(0, 0, float64(image.Width()), float64(image.Height()))
+		view.FitInView3(scene.SceneRect(), q.KeepAspectRatio)
+	})
+}
+
 func request(tags []string) posts {
 	req := &api.RequestBuilder{
 		Site: api.E926,
@@ -153,7 +174,7 @@ func request(tags []string) posts {
 
 type posts []*post.Post
 
-func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
+func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.QGraphicsView, stack *q.QStackedWidget) {
 	for _, p := range P {
 		item := q.NewQLabel3(p.Description)
 		go getAsync(&p.Preview, item)
@@ -165,7 +186,7 @@ func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.
 	}
 }
 
-func itemClick(p *post.Post, imageView *q.QLabel, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
+func itemClick(p *post.Post, imageView *q.QGraphicsView, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
 	return func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent){
 			if ev.Button() == q.LeftButton {
 				var f *post.File
@@ -174,15 +195,14 @@ func itemClick(p *post.Post, imageView *q.QLabel, stack *q.QStackedWidget) func(
 				} else {
 					f = &p.File.File
 				}
-				go getAsync(f, imageView)
-				imageView.SetVisible(true)
+				go viewFile(f, imageView)
 				stack.SetCurrentIndex(1)
 			}
 			super(ev)
 		}
 }
 
-func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
+func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QGraphicsView, stack *q.QStackedWidget) {
 	isLoading = true
 	posts := request(tags)
 
