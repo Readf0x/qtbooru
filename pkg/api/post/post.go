@@ -65,10 +65,12 @@ func (e *Extension) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type URL string
+
 type File struct {
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
-	URL    string `json:"url"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
+	URL    URL `json:"url"`
 }
 
 type FileFull struct {
