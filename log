@@ -1,0 +1,2 @@
+# qtbooru/cmd/qtbooru
+cmd/qtbooru/main.go:9:2: "runtime" imported and not used

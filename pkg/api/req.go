@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -30,6 +31,7 @@ func URL(u string) string {
 	if url := os.Getenv("OVERRIDE_URL"); url == "" {
 		return u
 	} else {
+		fmt.Println("redirecting to " + url)
 		return url
 	}
 }
@@ -50,17 +52,18 @@ type RequestBuilder struct {
 	Agent string
 }
 
-func (r *RequestBuilder) Process(client *http.Client) *[]*post.Post {
+func (r *RequestBuilder) Process(client *http.Client) (*[]*post.Post, error) {
 	tags := strings.Join(*r.Tags, " ")
 	if tags != "" { tags = "tags=" + tags }
 	params := strings.Join(append(*r.Params, tags), "&")
 	if params != "" { params = "?" + params }
 
 	req, err := http.NewRequest("GET", r.Site.String() + params, nil)
-	if err != nil { return nil }
+	if err != nil { return nil, nil }
 
 	req.Header.Set("User-Agent", r.Agent)
 	req.Header.Set("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(r.User+":"+r.Key)))
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
@@ -77,10 +80,15 @@ func (r *RequestBuilder) Process(client *http.Client) *[]*post.Post {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return p.Posts
+	if !p.Success && len(p.Message) > 0 {
+		return nil, fmt.Errorf("%s", p.Message)
+	}
+	return p.Posts, nil
 }
 
 type Posts struct {
-	Posts *[]*post.Post `json:"posts"`
+	Posts   *[]*post.Post `json:"posts"`
+	Success bool          `json:"success"`
+	Message string        `json:"message"`
 }
 
