@@ -64,6 +64,14 @@ func main() {
 	imageView.SetDragMode(q.QGraphicsView__ScrollHandDrag)
 	imageView.SetHorizontalScrollBarPolicy(q.ScrollBarAlwaysOff)
 	imageView.SetVerticalScrollBarPolicy(q.ScrollBarAlwaysOff)
+	imageView.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
+		if scene := imageView.Scene(); scene != nil {
+			if !scene.SceneRect().IsNull() {
+				imageView.FitInView3(scene.SceneRect(), q.KeepAspectRatio)
+			}
+		}
+		super(event)
+	})
 	scene := q.NewQGraphicsScene()
 	imageView.SetScene(scene)
 	stack.AddWidget(imageView.QWidget)
