@@ -26,20 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tags := os.Args[1:]
-	req := &api.RequestBuilder{
-		Site: api.E926,
-		Params: &[]string{"limit=20"},
-		Tags: &tags,
-		User: os.Getenv("API_USER"),
-		Key: os.Getenv("API_KEY"),
-		Agent: Agent,
-	}
-	p, err := req.Process(client)
-	if err != nil {
-		log.Fatal(err)
-	}
-	posts := *p
+	posts := request(os.Args[1:])
 
 	q.NewQApplication([]string{})
 
@@ -47,13 +34,20 @@ func main() {
 	stack := q.NewQStackedWidget(window.QWidget)
 	window.SetCentralWidget(stack.QWidget)
 
-	itemList := q.NewQScrollArea(window.QWidget)
+	mainArea := q.NewQWidget(window.QWidget)
+	mainLayout := q.NewQVBoxLayout(mainArea)
+	mainArea.SetLayout(mainLayout.Layout())
+	search := q.NewQLineEdit2()
+	mainLayout.AddWidget(search.QWidget)
+	itemList := q.NewQScrollArea2()
 	itemList.SetWidgetResizable(true)
 	itemList.SetHorizontalScrollBarPolicy(q.ScrollBarAlwaysOff)
-	content := q.NewQWidget(itemList.QWidget)
+	mainLayout.AddWidget(itemList.QWidget)
+	listContent := q.NewQWidget(itemList.QWidget)
 	layout := q.NewQGridLayout2()
-	itemList.SetWidget(content)
-	stack.AddWidget(itemList.QWidget)
+	listContent.SetLayout(layout.Layout())
+	itemList.SetWidget(listContent)
+	stack.AddWidget(mainArea)
 
 	imageView := q.NewQLabel(window.QWidget)
 	imageView.SetVisible(false)
@@ -62,44 +56,20 @@ func main() {
 	stack.AddWidget(imageView.QWidget)
 
 	width := window.Width() / itemWidth
-	var items *[]*q.QWidget = nil
+	var items []*q.QWidget = nil
 	if len(posts) == 0 {
-		hlayout := q.NewQHBoxLayout2()
 		msg := q.NewQLabel3("No Results.")
 		msg.SetAlignment(q.AlignCenter)
-		hlayout.AddWidget(msg.QWidget)
-		hlayout.SetAlignment(msg.QWidget, q.AlignCenter)
-		content.SetLayout(hlayout.Layout())
+		listContent.Layout().AddWidget(msg.QWidget)
 	} else {
-		content.SetLayout(layout.Layout())
-		it := make([]*q.QWidget, 0, len(posts))
-		items = &it
-		for i, p := range posts {
-			item := q.NewQLabel5(p.Description, content)
-			go getAsync(&p.Preview, item)
-			item.SetFixedWidth(itemWidth)
-			item.SetFixedHeight(itemHeight)
-			item.OnMousePressEvent(func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent){
-				if ev.Button() == q.LeftButton {
-					var f *post.File
-					if p.Sample.URL != "" {
-						f = &p.Sample.File
-					} else {
-						f = &p.File.File
-					}
-					go getAsync(f, imageView)
-					imageView.SetVisible(true)
-					stack.SetCurrentIndex(1)
-				}
-				super(ev)
-			})
-			it = append(it, item.QWidget)
-			layout.AddWidget2(item.QWidget, i / width, i % width)
-		}
+		items = make([]*q.QWidget, 0, len(posts))
+		posts.addToGrid(&items, width, layout, imageView, stack)
 	}
 
 	itemList.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
-		relayout(layout, items, (max(itemWidth, event.Size().Width() - 20)) / itemWidth)
+		if len(items) != 0 {
+			relayout(layout, items, max(itemWidth, event.Size().Width() - 20) / itemWidth)
+		}
 	})
 	window.SetMinimumSize2(itemWidth, itemHeight)
 	window.OnKeyPressEvent(func(super func(event *q.QKeyEvent), event *q.QKeyEvent){
@@ -111,15 +81,14 @@ func main() {
 	q.QApplication_Exec()
 }
 
-func relayout(layout *q.QGridLayout, items *[]*q.QWidget, width int) {
+func relayout(layout *q.QGridLayout, items []*q.QWidget, width int) {
 	if items != nil {
-		i := *items
-		parent := i[0].ParentWidget()
-		for _, item := range i {
+		parent := items[0].ParentWidget()
+		for _, item := range items {
 			layout.RemoveWidget(item)
 		}
 		rows := 0
-		for i, item := range i {
+		for i, item := range items {
 			rows = i / width
 			layout.AddWidget2(item, rows, i % width)
 		}
@@ -139,4 +108,51 @@ func getAsync(f *post.File, label *q.QLabel) {
 	mainthread.Wait(func() {
 		label.SetPixmap(image)
 	})
+}
+
+func request(tags []string) posts {
+	req := &api.RequestBuilder{
+		Site: api.E926,
+		Params: &[]string{"limit=4"},
+		Tags: &tags,
+		User: os.Getenv("API_USER"),
+		Key: os.Getenv("API_KEY"),
+		Agent: Agent,
+	}
+	p, err := req.Process(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return *p
+}
+
+type posts []*post.Post
+
+func (P posts) addToGrid(items *[]*q.QWidget, width int, grid *q.QGridLayout, imageView *q.QLabel, stack *q.QStackedWidget) {
+	for i, p := range P {
+		item := q.NewQLabel3(p.Description)
+		go getAsync(&p.Preview, item)
+		item.SetFixedWidth(itemWidth)
+		item.SetFixedHeight(itemHeight)
+		item.OnMousePressEvent(itemClick(p, imageView, stack))
+		*items = append(*items, item.QWidget)
+		grid.AddWidget2(item.QWidget, i / width, i % width)
+	}
+}
+
+func itemClick(p *post.Post, imageView *q.QLabel, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
+	return func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent){
+			if ev.Button() == q.LeftButton {
+				var f *post.File
+				if p.Sample.URL != "" {
+					f = &p.Sample.File
+				} else {
+					f = &p.File.File
+				}
+				go getAsync(f, imageView)
+				imageView.SetVisible(true)
+				stack.SetCurrentIndex(1)
+			}
+			super(ev)
+		}
 }
