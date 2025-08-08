@@ -55,6 +55,10 @@
               runHook postBuild
             '';
 
+            postInstall = ''
+              cp -r share $out/share
+            '';
+
             vendorHash = "sha256-PLABFPIAbdxWSDfhX+rr4Xh+IOKKCmB6FYQJk9SCta4=";
 
             ldflags = [ "-s" "-w" ];
@@ -62,7 +66,9 @@
 
             meta = {
               description = "Qt Booru Client";
+              homepage = "https://github.com/readf0x/qtbooru";
               mainProgram = pname;
+              license = lib.licenses.gpl3;
             };
           };
           default = qtbooru;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=QtBooru
+GenericName=Booru Client
+Comment=Qt based booru client
+Exec=qtbooru
+Type=Application
+Categories=AudioVideo,Network,Qt
