@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/mainthread"
+	m "github.com/mappu/miqt/qt6/multimedia"
 )
 
 const (
@@ -45,6 +46,7 @@ func main() {
 	mainLayout := q.NewQVBoxLayout(mainArea)
 	mainArea.SetLayout(mainLayout.Layout())
 	search := q.NewQLineEdit2()
+	search.SetStyleSheet("font-size: 12pt;")
 	mainLayout.AddWidget(search.QWidget)
 	itemList := q.NewQScrollArea2()
 	itemList.SetWidgetResizable(true)
@@ -76,6 +78,17 @@ func main() {
 	imageView.SetScene(scene)
 	stack.AddWidget(imageView.QWidget)
 
+	player := m.NewQMediaPlayer()
+	videoView := m.NewQVideoWidget(window.QWidget)
+	player.SetVideoOutput(videoView.QObject)
+	player.SetAudioOutput(m.NewQAudioOutput2(m.QMediaDevices_DefaultAudioOutput()))
+	stack.AddWidget(videoView.QWidget)
+	stack.OnCurrentChanged(func(p int){
+		if p == 0 {
+			player.Stop()
+		}
+	})
+
 	items := make([]*q.QWidget, 0)
 
 	tags := []string{}
@@ -84,7 +97,7 @@ func main() {
 		search.SetText(strings.Join(tags, " "))
 	}
 
-	update(tags, &items, listContent, layout, imageView, stack)
+	update(tags, &items, listContent, layout, imageView, player, stack)
 
 	search.OnReturnPressed(func(){
 		tags = strings.Split(search.Text(), " ")
@@ -95,7 +108,7 @@ func main() {
 		items = make([]*q.QWidget, 0)
 		currentPage = 1
 		scrollBar.SetValue(0)
-		update(tags, &items, listContent, layout, imageView, stack)
+		update(tags, &items, listContent, layout, imageView, player, stack)
 	})
 	itemList.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
 		if len(items) != 0 {
@@ -113,7 +126,7 @@ func main() {
 			return
 		}
 		if value >= scrollBar.Maximum() {
-			update(tags, &items, listContent, layout, imageView, stack)
+			update(tags, &items, listContent, layout, imageView, player, stack)
 		}
 	})
 	window.Show()
@@ -164,6 +177,11 @@ func viewFile(f *post.File, view *q.QGraphicsView) {
 	})
 }
 
+func viewVideo(f *post.File, player *m.QMediaPlayer)  {
+	player.SetSource(q.NewQUrl3(strings.Replace(string(f.URL), "localhost", "10.1.11.104", 1)))
+	player.Play()
+}
+
 func request(tags []string) posts {
 	req := &api.RequestBuilder{
 		Site: api.E926,
@@ -182,35 +200,40 @@ func request(tags []string) posts {
 
 type posts []*post.Post
 
-func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.QGraphicsView, stack *q.QStackedWidget) {
+func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) {
 	for _, p := range P {
 		item := q.NewQLabel3(p.Description)
 		go getAsync(&p.Preview, item)
 		item.SetFixedWidth(itemWidth)
 		item.SetFixedHeight(itemHeight)
-		item.OnMousePressEvent(itemClick(p, imageView, stack))
+		item.OnMousePressEvent(itemClick(p, imageView, player, stack))
 		*items = append(*items, item.QWidget)
 		grid.AddWidget(item.QWidget)
 	}
 }
 
-func itemClick(p *post.Post, imageView *q.QGraphicsView, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
+func itemClick(p *post.Post, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
 	return func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent){
-			if ev.Button() == q.LeftButton {
-				var f *post.File
-				if p.Sample.URL != "" {
-					f = &p.Sample.File
-				} else {
-					f = &p.File.File
-				}
+		if ev.Button() == q.LeftButton {
+			var f *post.File
+			if p.Sample.URL != "" {
+				f = &p.Sample.File
+			} else {
+				f = &p.File.File
+			}
+			if p.File.Type == post.WEBM {
+				viewVideo(&p.File.File, player)
+				stack.SetCurrentIndex(2)
+			} else {
 				go viewFile(f, imageView)
 				stack.SetCurrentIndex(1)
 			}
-			super(ev)
 		}
+		super(ev)
+	}
 }
 
-func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QGraphicsView, stack *q.QStackedWidget) {
+func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) {
 	isLoading = true
 	posts := request(tags)
 
@@ -221,7 +244,7 @@ func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *
 		msg.SetAlignment(q.AlignCenter)
 		listContent.Layout().AddWidget(msg.QWidget)
 	} else {
-		posts.addToGrid(items, layout, imageView, stack)
+		posts.addToGrid(items, layout, imageView, player, stack)
 		isLoading = false
 		currentPage++
 		relayout(listContent, layout, *items, max(itemWidth, listContent.Window().Width() - 20) / itemWidth)
