@@ -28,7 +28,10 @@ func LoadConfig() *ApiConfig {
 			}
 			defer file.Close()
 
-			json.Unmarshal(b, conf)
+			err = json.Unmarshal(b, conf)
+			if err != nil {
+				log.Fatal(err)
+			}
 			return conf
 		}
 	}
