@@ -16,18 +16,20 @@ import (
 )
 
 const (
-	itemWidth = 200
+	itemWidth  = 200
 	itemHeight = 200
-	pageSize = 40
+	pageSize   = 40
 
 	Agent = "QtBooru/indev_v0 (created by readf0x)"
 )
+
 var (
 	currentPage = 1
-	isLoading = false
-	endOfPosts = false
-
-	client = &http.Client{}
+	isLoading   = false
+	endOfPosts  = false
+	client      = &http.Client{}
+	booru       = api.E926
+	initialTags []string
 )
 
 func main() {
@@ -35,6 +37,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	processArgs(os.Args)
 
 	q.NewQApplication([]string{})
 
@@ -83,7 +87,7 @@ func main() {
 	player.SetVideoOutput(videoView.QObject)
 	player.SetAudioOutput(m.NewQAudioOutput2(m.QMediaDevices_DefaultAudioOutput()))
 	stack.AddWidget(videoView.QWidget)
-	stack.OnCurrentChanged(func(p int){
+	stack.OnCurrentChanged(func(p int) {
 		if p == 0 {
 			player.Stop()
 		}
@@ -91,15 +95,12 @@ func main() {
 
 	items := make([]*q.QWidget, 0)
 
-	tags := []string{}
-	if len(os.Args) > 1 {
-		tags = os.Args[1:]
-		search.SetText(strings.Join(tags, " "))
-	}
+	tags := initialTags
+	search.SetText(strings.Join(tags, " "))
 
 	update(tags, &items, listContent, layout, imageView, player, stack)
 
-	search.OnReturnPressed(func(){
+	search.OnReturnPressed(func() {
 		tags = strings.Split(search.Text(), " ")
 		for _, item := range items {
 			layout.RemoveWidget(item)
@@ -112,16 +113,16 @@ func main() {
 	})
 	itemList.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
 		if len(items) != 0 {
-			relayout(listContent, layout, items, max(itemWidth, event.Size().Width() - 20) / itemWidth)
+			relayout(listContent, layout, items, max(itemWidth, event.Size().Width()-20)/itemWidth)
 		}
 	})
 	window.SetMinimumSize2(itemWidth, itemHeight)
-	window.OnKeyPressEvent(func(super func(event *q.QKeyEvent), event *q.QKeyEvent){
+	window.OnKeyPressEvent(func(super func(event *q.QKeyEvent), event *q.QKeyEvent) {
 		if event.Key() == int(q.Key_Escape) {
 			stack.SetCurrentIndex(0)
 		}
 	})
-	scrollBar.OnValueChanged(func(value int){
+	scrollBar.OnValueChanged(func(value int) {
 		if isLoading || endOfPosts {
 			return
 		}
@@ -141,7 +142,7 @@ func relayout(parent *q.QWidget, layout *q.QGridLayout, items []*q.QWidget, widt
 		rows := 0
 		for i, item := range items {
 			rows = i / width
-			layout.AddWidget2(item, rows, i % width)
+			layout.AddWidget2(item, rows, i%width)
 		}
 		rows++
 		w := parent.ParentWidget().Width()
@@ -154,7 +155,9 @@ func relayout(parent *q.QWidget, layout *q.QGridLayout, items []*q.QWidget, widt
 
 func getAsync(f *post.File, label *q.QLabel) {
 	b, err := f.Get(client)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	image := q.NewQPixmap()
 	image.LoadFromDataWithData(*b)
 	mainthread.Wait(func() {
@@ -164,7 +167,9 @@ func getAsync(f *post.File, label *q.QLabel) {
 
 func viewFile(f *post.File, view *q.QGraphicsView) {
 	b, err := f.Get(client)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	image := q.NewQPixmap()
 	image.LoadFromDataWithData(*b)
 	mainthread.Wait(func() {
@@ -177,19 +182,19 @@ func viewFile(f *post.File, view *q.QGraphicsView) {
 	})
 }
 
-func viewVideo(f *post.File, player *m.QMediaPlayer)  {
+func viewVideo(f *post.File, player *m.QMediaPlayer) {
 	player.SetSource(q.NewQUrl3(strings.Replace(string(f.URL), "localhost", "10.1.11.104", 1)))
 	player.Play()
 }
 
 func request(tags []string) posts {
 	req := &api.RequestBuilder{
-		Site: api.E926,
+		Site:   booru,
 		Params: &[]string{fmt.Sprintf("limit=%d", pageSize), fmt.Sprintf("page=%d", currentPage)},
-		Tags: &tags,
-		User: os.Getenv("API_USER"),
-		Key: os.Getenv("API_KEY"),
-		Agent: Agent,
+		Tags:   &tags,
+		User:   os.Getenv("API_USER"),
+		Key:    os.Getenv("API_KEY"),
+		Agent:  Agent,
 	}
 	p, err := req.Process(client)
 	if err != nil {
@@ -213,7 +218,7 @@ func (P posts) addToGrid(items *[]*q.QWidget, grid *q.QGridLayout, imageView *q.
 }
 
 func itemClick(p *post.Post, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
-	return func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent){
+	return func(super func(ev *q.QMouseEvent), ev *q.QMouseEvent) {
 		if ev.Button() == q.LeftButton {
 			var f *post.File
 			if p.Sample.URL != "" {
@@ -237,7 +242,9 @@ func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *
 	isLoading = true
 	posts := request(tags)
 
-	if len(posts) < pageSize { endOfPosts = true }
+	if len(posts) < pageSize {
+		endOfPosts = true
+	}
 
 	if len(*items) == 0 && len(posts) == 0 {
 		msg := q.NewQLabel3("No Results.")
@@ -247,6 +254,34 @@ func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *
 		posts.addToGrid(items, layout, imageView, player, stack)
 		isLoading = false
 		currentPage++
-		relayout(listContent, layout, *items, max(itemWidth, listContent.Window().Width() - 20) / itemWidth)
+		relayout(listContent, layout, *items, max(itemWidth, listContent.Window().Width()-20)/itemWidth)
+	}
+}
+
+func processArgs(args []string) {
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-b":
+			fallthrough
+		case "--booru":
+			i++
+			if i >= len(args) {
+				log.Fatal("Missing booru after --booru")
+			}
+			switch args[i] {
+			case "e621":
+				booru = api.E621
+			case "e926":
+				booru = api.E926
+			}
+		case "-t":
+			fallthrough
+		case "--tags":
+			i++
+			if i >= len(args) {
+				log.Fatal("Missing tags after --tags")
+			}
+			initialTags = strings.Split(args[i], " ")
+		}
 	}
 }
