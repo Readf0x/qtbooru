@@ -9,11 +9,11 @@
   outputs = inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" ];
-      perSystem = { system, pkgs, ... }: {
-        devShells.default = let
+      perSystem = { system, pkgs, ... }: let
           lib = pkgs.lib;
           libs = with pkgs; [ kdePackages.full ];
-        in pkgs.mkShell {
+        in {
+        devShells.default = pkgs.mkShell {
           GOPATH = "/home/readf0x/.config/go";
           packages = with pkgs; [
             go
@@ -24,7 +24,6 @@
 
           LD_LIBRARY_PATH = lib.makeLibraryPath libs;
           PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" libs;
-          QML2_IMPORT_PATH = lib.makeSearchPath "lib/qt-6/qml" libs;
         };
         packages = rec {
           qtbooru = pkgs.buildGoModule rec {
@@ -32,14 +31,18 @@
             pname = name;
             version = "v1.0";
 
+            LD_LIBRARY_PATH = lib.makeLibraryPath libs;
+            PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" libs;
+
             src = ./.;
 
-            vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            vendorHash = "sha256-WrxgRYSXeXLJwsmNiRCBUCy7YdHIOO2eThhRX+qzI5g=";
 
             ldflags = [ "-s" "-w" ];
+            nativeBuildInputs = [ pkgs.pkg-config ];
 
             meta = {
-              description = "qt booru frontend";
+              description = "Qt Booru Client";
               mainProgram = pname;
             };
           };
