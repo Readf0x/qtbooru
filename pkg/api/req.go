@@ -10,8 +10,6 @@ import (
 	"os"
 	"qtbooru/pkg/api/post"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 type Booru int
@@ -23,11 +21,6 @@ const (
 	E926_URL string = "https://e926.net/posts.json"
 )
 func URL(u string) string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	if url := os.Getenv("OVERRIDE_URL"); url == "" {
 		return u
 	} else {

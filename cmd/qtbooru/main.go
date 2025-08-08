@@ -5,11 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"qtbooru/config"
 	"qtbooru/pkg/api"
 	"qtbooru/pkg/api/post"
 	"strings"
 
-	"github.com/joho/godotenv"
 	q "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/mainthread"
 	m "github.com/mappu/miqt/qt6/multimedia"
@@ -33,10 +33,7 @@ var (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
+	conf := loadEnv()
 
 	processArgs(os.Args)
 
@@ -98,7 +95,7 @@ func main() {
 	tags := initialTags
 	search.SetText(strings.Join(tags, " "))
 
-	update(tags, &items, listContent, layout, imageView, player, stack)
+	update(tags, conf, &items, listContent, layout, imageView, player, stack)
 
 	search.OnReturnPressed(func() {
 		tags = strings.Split(search.Text(), " ")
@@ -109,7 +106,7 @@ func main() {
 		items = make([]*q.QWidget, 0)
 		currentPage = 1
 		scrollBar.SetValue(0)
-		update(tags, &items, listContent, layout, imageView, player, stack)
+		update(tags, conf, &items, listContent, layout, imageView, player, stack)
 	})
 	itemList.OnResizeEvent(func(super func(event *q.QResizeEvent), event *q.QResizeEvent) {
 		if len(items) != 0 {
@@ -127,7 +124,7 @@ func main() {
 			return
 		}
 		if value >= scrollBar.Maximum() {
-			update(tags, &items, listContent, layout, imageView, player, stack)
+			update(tags, conf, &items, listContent, layout, imageView, player, stack)
 		}
 	})
 	window.Show()
@@ -187,13 +184,13 @@ func viewVideo(f *post.File, player *m.QMediaPlayer) {
 	player.Play()
 }
 
-func request(tags []string) posts {
+func request(tags []string, conf *config.ApiConfig) posts {
 	req := &api.RequestBuilder{
 		Site:   booru,
 		Params: &[]string{fmt.Sprintf("limit=%d", pageSize), fmt.Sprintf("page=%d", currentPage)},
 		Tags:   &tags,
-		User:   os.Getenv("API_USER"),
-		Key:    os.Getenv("API_KEY"),
+		User:   conf.Username,
+		Key:    conf.Key,
 		Agent:  Agent,
 	}
 	p, err := req.Process(client)
@@ -238,9 +235,9 @@ func itemClick(p *post.Post, imageView *q.QGraphicsView, player *m.QMediaPlayer,
 	}
 }
 
-func update(tags []string, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) {
+func update(tags []string, config *config.ApiConfig, items *[]*q.QWidget, listContent *q.QWidget, layout *q.QGridLayout, imageView *q.QGraphicsView, player *m.QMediaPlayer, stack *q.QStackedWidget) {
 	isLoading = true
-	posts := request(tags)
+	posts := request(tags, config)
 
 	if len(posts) < pageSize {
 		endOfPosts = true
