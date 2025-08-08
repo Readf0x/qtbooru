@@ -20,7 +20,7 @@ const (
 	itemHeight = 200
 	pageSize   = 40
 
-	Agent = "QtBooru/indev_v0 (created by readf0x)"
+	Agent = "QtBooru/v1.0 (created by readf0x)"
 )
 
 var (

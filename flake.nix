@@ -30,7 +30,7 @@
           qtbooru = pkgs.buildGoModule rec {
             name = "qtbooru";
             pname = name;
-            version = "indev_v0";
+            version = "v1.0";
 
             src = ./.;
 
