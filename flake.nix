@@ -26,7 +26,14 @@
           PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" libs;
         };
         packages = rec {
-          qtbooru = pkgs.buildGoModule rec {
+          qtbooru = let
+            miqt = pkgs.fetchFromGitHub {
+              owner = "mappu";
+              repo = "miqt";
+              rev = "v0.11.1";
+              hash = "sha256-crKIxCrWJrJTmF2JKPy3JpAyloaDoBxjxgxRZjjXHRc=";
+            };
+          in pkgs.buildGoModule rec {
             name = "qtbooru";
             pname = name;
             version = "v1.0";
@@ -36,7 +43,19 @@
 
             src = ./.;
 
-            vendorHash = "sha256-WrxgRYSXeXLJwsmNiRCBUCy7YdHIOO2eThhRX+qzI5g=";
+            modBuildPhase = ''
+              runHook preBuild
+
+              if (( "''${NIX_DEBUG:-0}" >= 1 )); then
+                goModVendorFlags+=(-v)
+              fi
+              go mod vendor
+              cp -r ${miqt}/libmiqt vendor/github.com/mappu/miqt
+
+              runHook postBuild
+            '';
+
+            vendorHash = "sha256-PLABFPIAbdxWSDfhX+rr4Xh+IOKKCmB6FYQJk9SCta4=";
 
             ldflags = [ "-s" "-w" ];
             nativeBuildInputs = [ pkgs.pkg-config ];
